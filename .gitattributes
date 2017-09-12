@@ -1,0 +1,3 @@
+*jquery* linguist-vendored=true
+notification-console/src/main/resources/static/js/lib/* linguist-vendored=true
+notification-console/src/main/resources/static/css/lib/* linguist-vendored=true
