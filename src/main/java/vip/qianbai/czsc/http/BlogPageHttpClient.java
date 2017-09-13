@@ -1,18 +1,29 @@
 package vip.qianbai.czsc.http;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.IOUtils;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import feign.Feign;
 import feign.Param;
 import feign.RequestLine;
 import feign.okhttp.OkHttpClient;
 import feign.slf4j.Slf4jLogger;
-import vip.qianbai.czsc.JsonUtil;
+import okhttp3.Call;
+import okhttp3.Request;
+import vip.qianbai.czsc.Constants;
 import vip.qianbai.czsc.bean.TechStock;
 import vip.qianbai.czsc.parser.BlogHtmlParser;
 
@@ -21,14 +32,13 @@ import vip.qianbai.czsc.parser.BlogHtmlParser;
  * @date 2017年9月12日
  */
 public class BlogPageHttpClient {
-  static String host="http://blog.sina.com.cn/";
-  static String keywords="教你炒股票";
-  BlogSz client = null;
   
+  BlogSz client = null;
+  static okhttp3.OkHttpClient httc = new okhttp3.OkHttpClient();
   
   public BlogPageHttpClient() {
     super();
-    client = Feign.builder().logger(new Slf4jLogger()).client(new OkHttpClient()).target(BlogSz.class,host);
+    client = Feign.builder().logger(new Slf4jLogger()).client(new OkHttpClient(httc)).target(BlogSz.class,Constants.host);
   }
 
 
@@ -42,19 +52,28 @@ public class BlogPageHttpClient {
     return result.stream().sorted(Comparator.comparing(TechStock::getTitle)).collect(Collectors.toList());
   }
  
-  public static void main(String[] args) {
-    BlogPageHttpClient bc = new BlogPageHttpClient();
+  public List<TechStock> deserialize(){
+    ObjectMapper mapper = new ObjectMapper();
     try {
-      List<TechStock> czscurls = bc.index(keywords, host);
-      JsonUtil.toFile(czscurls, "F:/personal/czsc.txt");
-    } catch (Exception e) {
+      List<TechStock> techUrls = mapper.readValue(new FileInputStream(new File(Constants.JSON_FILE)), new TypeReference<List<TechStock>>() {});
+      return techUrls;
+    } catch (IOException e) {
       e.printStackTrace();
     }
+    return null;
+  }
+  
+  
+  public String grabTechHtml(TechStock ts) throws IOException{
+    Request request = new Request.Builder().url(ts.getUrl()).get().build();
+    Call response = httc.newCall(request );
+    return response.execute().body().string();
   }
   
   interface BlogSz{
     
     @RequestLine("GET /s/articlelist_1215172700_10_{page}.html")
     String grabIndex(@Param("page") int page);
+    
   }
 }
